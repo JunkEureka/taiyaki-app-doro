@@ -56,16 +56,19 @@
     }
 
     .btn-undo {
-      padding: 6px 12px;
+      padding: 8px 14px;
       font-size: 14px;
       font-weight: bold;
       border-radius: 8px;
       border: 1px solid var(--border-color);
       background-color: #ffffff;
+      color: var(--primary-color);
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: background 0.2s;
     }
 
     .btn-undo:hover {
@@ -73,8 +76,8 @@
     }
 
     .day-selector select {
-      padding: 6px 12px;
-      font-size: 16px;
+      padding: 8px 12px;
+      font-size: 15px;
       border-radius: 8px;
       border: 1px solid var(--border-color);
       background-color: white;
@@ -128,17 +131,12 @@
 
     .stock-info {
       display: flex;
-      flex-direction: column;
+      align-items: center;
     }
 
     .stock-name {
       font-weight: bold;
       font-size: 16px;
-    }
-
-    .stock-price {
-      font-size: 12px;
-      color: #777;
     }
 
     .stock-right {
@@ -348,7 +346,7 @@
     }
 
     .chart-label {
-      width: 130px;
+      width: 140px;
       font-size: 14px;
       font-weight: bold;
     }
@@ -467,7 +465,7 @@
   <header>
     <div class="logo">🐟 たい焼き屋台</div>
     <div class="header-controls">
-      <button class="btn-undo" onclick="undoLastAction()">↩ 取り消す</button>
+      <button class="btn-undo" onclick="undoLastAction()">↩ 前に戻す</button>
       <div class="day-selector">
         <select id="daySelect" onchange="changeDay(this.value)">
           <option value="1">1日目</option>
@@ -569,16 +567,16 @@
   </div>
 
   <script>
-    // メニュー定義
+    // メニュー定義（絵文字付き）
     const MENU = [
-      { id: 'anko', name: 'あんこ', short: 'あん', price: 150 },
-      { id: 'custard', name: 'カスタード', short: 'カス', price: 150 },
-      { id: 'cinnamon', name: 'アップルシナモン', short: 'シナ', price: 200 },
-      { id: 'potato', name: 'ジャーマンポテト', short: 'ポテ', price: 200 }
+      { id: 'anko', emoji: '🫘', name: 'あんこ', short: 'あん', price: 150 },
+      { id: 'custard', emoji: '🍮', name: 'カスタード', short: 'カス', price: 150 },
+      { id: 'cinnamon', emoji: '🍎', name: 'アップルシナモン', short: 'シナ', price: 200 },
+      { id: 'potato', emoji: '🥔', name: 'ジャーマンポテト', short: 'ポテ', price: 200 }
     ];
 
     let currentDay = 1;
-    let historyStateStack = []; // アンドゥ（1つ戻す）用スタック
+    let historyStateStack = [];
 
     let appData = {
       1: createDayData(),
@@ -597,23 +595,30 @@
       };
     }
 
-    // アンドゥ用に現在の状態を保存
-    function pushState() {
-      if (historyStateStack.length >= 10) historyStateStack.shift();
+    function recordState() {
+      if (historyStateStack.length >= 20) {
+        historyStateStack.shift();
+      }
       historyStateStack.push(JSON.stringify(appData));
     }
 
     function undoLastAction() {
       if (historyStateStack.length === 0) {
-        alert('これ以上取り消せません。');
+        alert('これ以上前に戻せません。');
         return;
       }
       const previousState = historyStateStack.pop();
       appData = JSON.parse(previousState);
-      renderAll(false);
+      
+      renderStock();
+      renderWaiting();
+      renderSummary();
+      renderChart();
+      renderHistory();
+      render3DaysSummary();
+      saveData();
     }
 
-    // 初期化
     window.onload = function() {
       const saved = localStorage.getItem('taiyaki_app_data');
       if (saved) {
@@ -632,9 +637,10 @@
       renderAll(false);
     }
 
-    // 全体描画
     function renderAll(saveHistory = true) {
-      if (saveHistory) pushState();
+      if (saveHistory) {
+        recordState();
+      }
       renderStock();
       renderWaiting();
       renderSummary();
@@ -644,7 +650,7 @@
       saveData();
     }
 
-    // 1. 在庫表示
+    // 1. 在庫表示（値段なし・絵文字あり）
     function renderStock() {
       const data = appData[currentDay].stock;
       const soldOutData = appData[currentDay].manualSoldOut || {};
@@ -659,8 +665,7 @@
           <div class="stock-item">
             <div class="stock-info">
               <div>
-                <span class="stock-name">${item.name}</span>
-                <span class="stock-price">${item.price}円</span>
+                <span class="stock-name">${item.emoji} ${item.name}</span>
                 ${isSoldOut ? '<span class="sold-out-badge">売り切れ</span>' : ''}
               </div>
             </div>
@@ -677,9 +682,10 @@
     }
 
     function toggleManualSoldOut(itemId, isChecked) {
+      recordState();
       if (!appData[currentDay].manualSoldOut) appData[currentDay].manualSoldOut = {};
       appData[currentDay].manualSoldOut[itemId] = isChecked;
-      renderAll();
+      renderAll(false);
     }
 
     // 2. お待ちのお客様表示 ＆ 残り必要作成数の集計
@@ -687,7 +693,6 @@
       const list = appData[currentDay].waiting;
       const container = document.getElementById('waitingList');
 
-      // 残り必要数の計算
       const neededTotals = {};
       list.forEach(ord => {
         ord.items.forEach(i => {
@@ -721,14 +726,14 @@
       container.innerHTML = html;
     }
 
-    // 3. 入力欄生成（＋－クイックボタン付き）
+    // 3. 入力欄生成（絵文字あり）
     function renderInputs() {
       let orderHtml = '';
       let bakeHtml = '';
       MENU.forEach(item => {
         orderHtml += `
           <div class="item-input-row">
-            <label>${item.name} (${item.price}円)</label>
+            <label>${item.emoji} ${item.name} (${item.price}円)</label>
             <div class="stepper">
               <button class="btn-step" onclick="changeInputValue('ord_${item.id}', -1)">-</button>
               <input type="number" id="ord_${item.id}" min="0" value="0">
@@ -738,7 +743,7 @@
         `;
         bakeHtml += `
           <div class="item-input-row">
-            <label>${item.name}</label>
+            <label>${item.emoji} ${item.name}</label>
             <div class="stepper">
               <button class="btn-step" onclick="changeInputValue('bake_${item.id}', -1)">-</button>
               <input type="number" id="bake_${item.id}" min="0" value="0">
@@ -765,7 +770,6 @@
       });
     }
 
-    // モーダル処理（注文追加確認）
     let pendingOrder = null;
     function openConfirmModal() {
       const items = [];
@@ -774,7 +778,7 @@
         const val = parseInt(document.getElementById(`ord_${item.id}`).value) || 0;
         if (val > 0) {
           items.push({ id: item.id, name: item.name, short: item.short, count: val, price: item.price });
-          summaryText.push(`${item.name} × ${val}`);
+          summaryText.push(`${item.emoji} ${item.name} × ${val}`);
         }
       });
 
@@ -795,6 +799,8 @@
 
     function confirmOrder() {
       if (!pendingOrder) return;
+      recordState();
+      
       const dayData = appData[currentDay];
       dayData.waiting.push({
         no: dayData.orderCounter++,
@@ -802,54 +808,65 @@
       });
       resetInputs('ord');
       closeModal();
-      renderAll();
+      renderAll(false);
     }
 
-    // 製造記録で在庫追加
     function addBakeToStock() {
-      const dayData = appData[currentDay];
       let added = false;
       MENU.forEach(item => {
         const val = parseInt(document.getElementById(`bake_${item.id}`).value) || 0;
-        if (val > 0) {
-          dayData.stock[item.id] = (dayData.stock[item.id] || 0) + val;
-          added = true;
-        }
+        if (val > 0) added = true;
       });
+
       if (!added) {
         alert('製造個数を入力してください。');
         return;
       }
+
+      recordState();
+
+      const dayData = appData[currentDay];
+      MENU.forEach(item => {
+        const val = parseInt(document.getElementById(`bake_${item.id}`).value) || 0;
+        if (val > 0) {
+          dayData.stock[item.id] = (dayData.stock[item.id] || 0) + val;
+        }
+      });
+
       resetInputs('bake');
-      renderAll();
+      renderAll(false);
     }
 
-    // お渡しボタン実行
+    // お渡しボタン実行（購入履歴に売上金額も追加）
     function completeOrder(index) {
+      recordState();
+
       const dayData = appData[currentDay];
       const target = dayData.waiting[index];
 
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       let detailStrs = [];
+      let totalPrice = 0;
 
       target.items.forEach(item => {
         dayData.stock[item.id] = Math.max(0, (dayData.stock[item.id] || 0) - item.count);
         dayData.sales[item.id] = (dayData.sales[item.id] || 0) + item.count;
         detailStrs.push(`${item.short}${item.count}`);
+        totalPrice += item.price * item.count;
       });
 
       dayData.history.unshift({
         no: target.no,
         time: timeStr,
-        text: detailStrs.join(' ')
+        text: detailStrs.join(' '),
+        price: totalPrice
       });
 
       dayData.waiting.splice(index, 1);
-      renderAll();
+      renderAll(false);
     }
 
-    // 4. サマリー計算（今日の売上・販売数）
     function renderSummary() {
       const sales = appData[currentDay].sales;
       let totalAmount = 0;
@@ -865,7 +882,6 @@
       document.getElementById('todayCount').innerText = `${totalCount}個`;
     }
 
-    // 5. 売れ行き棒グラフ
     function renderChart() {
       const sales = appData[currentDay].sales;
       let maxCount = 1;
@@ -880,7 +896,7 @@
         const percent = (count / maxCount) * 100;
         html += `
           <div class="chart-row">
-            <div class="chart-label">${item.name}</div>
+            <div class="chart-label">${item.emoji} ${item.name}</div>
             <div class="chart-bar-wrapper">
               <div class="chart-bar" style="width: ${percent}%;"></div>
             </div>
@@ -891,7 +907,7 @@
       document.getElementById('chartContainer').innerHTML = html;
     }
 
-    // 6. 購入履歴
+    // 購入履歴（金額を表示）
     function renderHistory() {
       const history = appData[currentDay].history;
       const container = document.getElementById('historyList');
@@ -905,40 +921,37 @@
         html += `
           <div class="history-item">
             <span>No.${h.no} (${h.time})</span>
-            <span>${h.text}</span>
+            <span>${h.text} <strong>￥${h.price.toLocaleString()}</strong></span>
           </div>
         `;
       });
       container.innerHTML = html;
     }
 
-    // 7. 3日間の集計
+    // 3日間の集計（在庫数を削除）
     function render3DaysSummary() {
       let html = '';
       [1, 2, 3].forEach(d => {
         const dData = appData[d];
         let totalAmount = 0;
         let totalCount = 0;
-        let totalStock = 0;
 
         MENU.forEach(item => {
           const count = dData.sales[item.id] || 0;
           totalCount += count;
           totalAmount += count * item.price;
-          totalStock += (dData.stock[item.id] || 0);
         });
 
         html += `
           <div class="day-box">
             <strong>${d}日目</strong>
-            <span>売上 ￥${totalAmount.toLocaleString()} / 販売 ${totalCount}個 / 在庫 ${totalStock}個</span>
+            <span>売上 ￥${totalAmount.toLocaleString()} / 販売 ${totalCount}個</span>
           </div>
         `;
       });
       document.getElementById('threeDaysSummary').innerHTML = html;
     }
 
-    // バックアップ機能
     function exportBackup() {
       const jsonStr = JSON.stringify(appData, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -956,8 +969,9 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
+          recordState();
           appData = JSON.parse(e.target.result);
-          renderAll();
+          renderAll(false);
           alert('バックアップから復元しました！');
         } catch (err) {
           alert('ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。');
