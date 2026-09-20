@@ -49,6 +49,29 @@
       color: var(--primary-color);
     }
 
+    .header-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn-undo {
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background-color: #ffffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-undo:hover {
+      background-color: #f0f0f0;
+    }
+
     .day-selector select {
       padding: 6px 12px;
       font-size: 16px;
@@ -81,8 +104,8 @@
       font-weight: bold;
       margin-bottom: 12px;
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 6px;
       color: var(--primary-color);
     }
 
@@ -103,6 +126,11 @@
       border: 1px solid #efebe4;
     }
 
+    .stock-info {
+      display: flex;
+      flex-direction: column;
+    }
+
     .stock-name {
       font-weight: bold;
       font-size: 16px;
@@ -113,6 +141,12 @@
       color: #777;
     }
 
+    .stock-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .stock-count {
       font-size: 20px;
       font-weight: bold;
@@ -120,6 +154,19 @@
 
     .stock-count.low {
       color: var(--danger-color);
+    }
+
+    .toggle-soldout {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+    }
+
+    .toggle-soldout input {
+      cursor: pointer;
     }
 
     .sold-out-badge {
@@ -132,11 +179,21 @@
     }
 
     /* 右上：お待ちのお客様エリア */
+    .needed-summary {
+      background-color: #fff3cd;
+      color: #856404;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
     .waiting-list {
       display: flex;
       flex-direction: column;
       gap: 8px;
-      max-height: 220px;
+      max-height: 200px;
       overflow-y: auto;
     }
 
@@ -167,12 +224,12 @@
       background-color: #cccccc;
     }
 
-    /* 下部入力エリアフォーム */
+    /* 入力エリア（＋－ボタン付き） */
     .item-input-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .item-input-row label {
@@ -180,13 +237,39 @@
       font-weight: bold;
     }
 
-    .item-input-row input {
-      width: 60px;
-      padding: 6px;
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-step {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: #f0f0f0;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+
+    .btn-step:active {
+      background-color: #ddd;
+    }
+
+    .stepper input {
+      width: 44px;
+      height: 32px;
       text-align: center;
       border-radius: 6px;
       border: 1px solid var(--border-color);
       font-size: 16px;
+      font-weight: bold;
     }
 
     .btn-action {
@@ -286,7 +369,7 @@
     }
 
     .chart-val {
-      width: 80px;
+      width: 100px;
       text-align: right;
       font-size: 14px;
       font-weight: bold;
@@ -383,12 +466,15 @@
   <!-- ヘッダー -->
   <header>
     <div class="logo">🐟 たい焼き屋台</div>
-    <div class="day-selector">
-      <select id="daySelect" onchange="changeDay(this.value)">
-        <option value="1">1日目</option>
-        <option value="2">2日目</option>
-        <option value="3">3日目</option>
-      </select>
+    <div class="header-controls">
+      <button class="btn-undo" onclick="undoLastAction()">↩ 取り消す</button>
+      <div class="day-selector">
+        <select id="daySelect" onchange="changeDay(this.value)">
+          <option value="1">1日目</option>
+          <option value="2">2日目</option>
+          <option value="3">3日目</option>
+        </select>
+      </div>
     </div>
   </header>
 
@@ -396,13 +482,18 @@
   <div class="main-grid">
     <!-- 左上：在庫エリア -->
     <div class="card">
-      <div class="card-title">在庫</div>
+      <div class="card-title">
+        <span>在庫</span>
+      </div>
       <div class="stock-list" id="stockList"></div>
     </div>
 
     <!-- 右上：お待ちのお客様エリア -->
     <div class="card">
-      <div class="card-title">🧑 お待ちのお客様</div>
+      <div class="card-title">
+        <span>🧑 お待ちのお客様</span>
+      </div>
+      <div id="neededSummary" class="needed-summary">残り必要数: なし</div>
       <div class="waiting-list" id="waitingList"></div>
     </div>
 
@@ -421,7 +512,7 @@
     </div>
   </div>
 
-  <!-- 売上・販売数 表示バー（タブレット1画面内） -->
+  <!-- 売上・販売数 表示バー -->
   <div class="summary-bar">
     <div class="summary-item">
       <span>今日の売上</span>
@@ -486,8 +577,9 @@
       { id: 'potato', name: 'ジャーマンポテト', short: 'ポテ', price: 200 }
     ];
 
-    // アプリの状態
     let currentDay = 1;
+    let historyStateStack = []; // アンドゥ（1つ戻す）用スタック
+
     let appData = {
       1: createDayData(),
       2: createDayData(),
@@ -497,6 +589,7 @@
     function createDayData() {
       return {
         stock: { anko: 0, custard: 0, cinnamon: 0, potato: 0 },
+        manualSoldOut: { anko: false, custard: false, cinnamon: false, potato: false },
         waiting: [],
         sales: { anko: 0, custard: 0, cinnamon: 0, potato: 0 },
         history: [],
@@ -504,13 +597,30 @@
       };
     }
 
-    // 初期化・ローカルストレージ読み込み
+    // アンドゥ用に現在の状態を保存
+    function pushState() {
+      if (historyStateStack.length >= 10) historyStateStack.shift();
+      historyStateStack.push(JSON.stringify(appData));
+    }
+
+    function undoLastAction() {
+      if (historyStateStack.length === 0) {
+        alert('これ以上取り消せません。');
+        return;
+      }
+      const previousState = historyStateStack.pop();
+      appData = JSON.parse(previousState);
+      renderAll(false);
+    }
+
+    // 初期化
     window.onload = function() {
       const saved = localStorage.getItem('taiyaki_app_data');
       if (saved) {
         try { appData = JSON.parse(saved); } catch(e){}
       }
-      renderAll();
+      renderInputs();
+      renderAll(false);
     };
 
     function saveData() {
@@ -519,14 +629,14 @@
 
     function changeDay(day) {
       currentDay = parseInt(day);
-      renderAll();
+      renderAll(false);
     }
 
     // 全体描画
-    function renderAll() {
+    function renderAll(saveHistory = true) {
+      if (saveHistory) pushState();
       renderStock();
       renderWaiting();
-      renderInputs();
       renderSummary();
       renderChart();
       renderHistory();
@@ -537,33 +647,67 @@
     // 1. 在庫表示
     function renderStock() {
       const data = appData[currentDay].stock;
+      const soldOutData = appData[currentDay].manualSoldOut || {};
       let html = '';
       MENU.forEach(item => {
         const count = data[item.id] || 0;
+        const isManualSoldOut = soldOutData[item.id] || false;
         const isLow = count <= 5;
-        const isSoldOut = count === 0;
+        const isSoldOut = count === 0 || isManualSoldOut;
+
         html += `
           <div class="stock-item">
-            <div>
-              <span class="stock-name">${item.name}</span>
-              <span class="stock-price">${item.price}円</span>
-              ${isSoldOut ? '<span class="sold-out-badge">売り切れ</span>' : ''}
+            <div class="stock-info">
+              <div>
+                <span class="stock-name">${item.name}</span>
+                <span class="stock-price">${item.price}円</span>
+                ${isSoldOut ? '<span class="sold-out-badge">売り切れ</span>' : ''}
+              </div>
             </div>
-            <div class="stock-count ${isLow ? 'low' : ''}">${count}個</div>
+            <div class="stock-right">
+              <label class="toggle-soldout">
+                <input type="checkbox" ${isManualSoldOut ? 'checked' : ''} onchange="toggleManualSoldOut('${item.id}', this.checked)"> 完売
+              </label>
+              <div class="stock-count ${isLow ? 'low' : ''}">${count}個</div>
+            </div>
           </div>
         `;
       });
       document.getElementById('stockList').innerHTML = html;
     }
 
-    // 2. お待ちのお客様表示
+    function toggleManualSoldOut(itemId, isChecked) {
+      if (!appData[currentDay].manualSoldOut) appData[currentDay].manualSoldOut = {};
+      appData[currentDay].manualSoldOut[itemId] = isChecked;
+      renderAll();
+    }
+
+    // 2. お待ちのお客様表示 ＆ 残り必要作成数の集計
     function renderWaiting() {
       const list = appData[currentDay].waiting;
       const container = document.getElementById('waitingList');
+
+      // 残り必要数の計算
+      const neededTotals = {};
+      list.forEach(ord => {
+        ord.items.forEach(i => {
+          neededTotals[i.short] = (neededTotals[i.short] || 0) + i.count;
+        });
+      });
+
+      const neededArr = Object.keys(neededTotals).map(k => `${k}${neededTotals[k]}個`);
+      const neededSummaryElem = document.getElementById('neededSummary');
+      if (neededArr.length > 0) {
+        neededSummaryElem.innerText = `残り必要数: ${neededArr.join('  ')}`;
+      } else {
+        neededSummaryElem.innerText = '残り必要数: なし';
+      }
+
       if (list.length === 0) {
         container.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">お待ちのお客様はいません</div>';
         return;
       }
+
       let html = '';
       list.forEach((ord, index) => {
         const itemsStr = ord.items.map(i => `${i.short}${i.count}`).join(' ');
@@ -577,7 +721,7 @@
       container.innerHTML = html;
     }
 
-    // 3. 入力欄生成
+    // 3. 入力欄生成（＋－クイックボタン付き）
     function renderInputs() {
       let orderHtml = '';
       let bakeHtml = '';
@@ -585,18 +729,40 @@
         orderHtml += `
           <div class="item-input-row">
             <label>${item.name} (${item.price}円)</label>
-            <input type="number" id="ord_${item.id}" min="0" value="0">
+            <div class="stepper">
+              <button class="btn-step" onclick="changeInputValue('ord_${item.id}', -1)">-</button>
+              <input type="number" id="ord_${item.id}" min="0" value="0">
+              <button class="btn-step" onclick="changeInputValue('ord_${item.id}', 1)">+</button>
+            </div>
           </div>
         `;
         bakeHtml += `
           <div class="item-input-row">
             <label>${item.name}</label>
-            <input type="number" id="bake_${item.id}" min="0" value="0">
+            <div class="stepper">
+              <button class="btn-step" onclick="changeInputValue('bake_${item.id}', -1)">-</button>
+              <input type="number" id="bake_${item.id}" min="0" value="0">
+              <button class="btn-step" onclick="changeInputValue('bake_${item.id}', 1)">+</button>
+            </div>
           </div>
         `;
       });
       document.getElementById('orderInputs').innerHTML = orderHtml;
       document.getElementById('bakeInputs').innerHTML = bakeHtml;
+    }
+
+    function changeInputValue(inputId, delta) {
+      const input = document.getElementById(inputId);
+      let val = parseInt(input.value) || 0;
+      val = Math.max(0, val + delta);
+      input.value = val;
+    }
+
+    function resetInputs(prefix) {
+      MENU.forEach(item => {
+        const elem = document.getElementById(`${prefix}_${item.id}`);
+        if (elem) elem.value = 0;
+      });
     }
 
     // モーダル処理（注文追加確認）
@@ -634,6 +800,7 @@
         no: dayData.orderCounter++,
         items: pendingOrder
       });
+      resetInputs('ord');
       closeModal();
       renderAll();
     }
@@ -653,6 +820,7 @@
         alert('製造個数を入力してください。');
         return;
       }
+      resetInputs('bake');
       renderAll();
     }
 
@@ -661,27 +829,22 @@
       const dayData = appData[currentDay];
       const target = dayData.waiting[index];
 
-      // 在庫・売上・販売数の処理
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
       let detailStrs = [];
 
       target.items.forEach(item => {
-        // 在庫から引く
         dayData.stock[item.id] = Math.max(0, (dayData.stock[item.id] || 0) - item.count);
-        // 販売数加算
         dayData.sales[item.id] = (dayData.sales[item.id] || 0) + item.count;
         detailStrs.push(`${item.short}${item.count}`);
       });
 
-      // 購入履歴に追加
       dayData.history.unshift({
         no: target.no,
         time: timeStr,
         text: detailStrs.join(' ')
       });
 
-      // お待ちリストから外す
       dayData.waiting.splice(index, 1);
       renderAll();
     }
@@ -721,7 +884,7 @@
             <div class="chart-bar-wrapper">
               <div class="chart-bar" style="width: ${percent}%;"></div>
             </div>
-            <div class="chart-val">${count}個 / ￥${amount}</div>
+            <div class="chart-val">${count}個 / ￥${amount.toLocaleString()}</div>
           </div>
         `;
       });
@@ -775,7 +938,7 @@
       document.getElementById('threeDaysSummary').innerHTML = html;
     }
 
-    // バックアップエクスポート
+    // バックアップ機能
     function exportBackup() {
       const jsonStr = JSON.stringify(appData, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -787,7 +950,6 @@
       URL.revokeObjectURL(url);
     }
 
-    // バックアップインポート
     function importBackup(event) {
       const file = event.target.files[0];
       if (!file) return;
