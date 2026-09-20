@@ -610,19 +610,21 @@
       const previousState = historyStateStack.pop();
       appData = JSON.parse(previousState);
       
-      renderStock();
-      renderWaiting();
-      renderSummary();
-      renderChart();
-      renderHistory();
-      render3DaysSummary();
-      saveData();
+      renderAll(false);
     }
 
     window.onload = function() {
       const saved = localStorage.getItem('taiyaki_app_data');
       if (saved) {
-        try { appData = JSON.parse(saved); } catch(e){}
+        try { 
+          const parsed = JSON.parse(saved);
+          // データの初期構造を保持しながら復元
+          [1, 2, 3].forEach(d => {
+            if (parsed[d]) {
+              appData[d] = { ...createDayData(), ...parsed[d] };
+            }
+          });
+        } catch(e){}
       }
       renderInputs();
       renderAll(false);
@@ -634,6 +636,7 @@
 
     function changeDay(day) {
       currentDay = parseInt(day);
+      document.getElementById('daySelect').value = day;
       renderAll(false);
     }
 
@@ -690,7 +693,7 @@
 
     // 2. お待ちのお客様表示 ＆ 残り必要作成数の集計
     function renderWaiting() {
-      const list = appData[currentDay].waiting;
+      const list = appData[currentDay].waiting || [];
       const container = document.getElementById('waitingList');
 
       const neededTotals = {};
@@ -802,6 +805,8 @@
       recordState();
       
       const dayData = appData[currentDay];
+      if (!dayData.waiting) dayData.waiting = [];
+      
       dayData.waiting.push({
         no: dayData.orderCounter++,
         items: pendingOrder
@@ -837,7 +842,7 @@
       renderAll(false);
     }
 
-    // お渡しボタン実行（購入履歴に売上金額も追加）
+    // お渡しボタン実行（購入履歴に売上金額を追加）
     function completeOrder(index) {
       recordState();
 
@@ -856,6 +861,8 @@
         totalPrice += item.price * item.count;
       });
 
+      if (!dayData.history) dayData.history = [];
+
       dayData.history.unshift({
         no: target.no,
         time: timeStr,
@@ -868,7 +875,7 @@
     }
 
     function renderSummary() {
-      const sales = appData[currentDay].sales;
+      const sales = appData[currentDay].sales || {};
       let totalAmount = 0;
       let totalCount = 0;
 
@@ -883,7 +890,7 @@
     }
 
     function renderChart() {
-      const sales = appData[currentDay].sales;
+      const sales = appData[currentDay].sales || {};
       let maxCount = 1;
       MENU.forEach(item => {
         if ((sales[item.id] || 0) > maxCount) maxCount = sales[item.id];
@@ -907,9 +914,9 @@
       document.getElementById('chartContainer').innerHTML = html;
     }
 
-    // 購入履歴（金額を表示）
+    // 購入履歴の描画
     function renderHistory() {
-      const history = appData[currentDay].history;
+      const history = appData[currentDay].history || [];
       const container = document.getElementById('historyList');
       if (history.length === 0) {
         container.innerHTML = '<div style="color: #888;">まだ購入履歴はありません。</div>';
@@ -918,26 +925,28 @@
 
       let html = '';
       history.forEach(h => {
+        const priceStr = h.price !== undefined ? `￥${h.price.toLocaleString()}` : '';
         html += `
           <div class="history-item">
             <span>No.${h.no} (${h.time})</span>
-            <span>${h.text} <strong>￥${h.price.toLocaleString()}</strong></span>
+            <span>${h.text} ${priceStr ? ` <strong>${priceStr}</strong>` : ''}</span>
           </div>
         `;
       });
       container.innerHTML = html;
     }
 
-    // 3日間の集計（在庫数を削除）
+    // 3日間の集計の描画（在庫数非表示）
     function render3DaysSummary() {
       let html = '';
       [1, 2, 3].forEach(d => {
-        const dData = appData[d];
+        const dData = appData[d] || createDayData();
+        const sales = dData.sales || {};
         let totalAmount = 0;
         let totalCount = 0;
 
         MENU.forEach(item => {
-          const count = dData.sales[item.id] || 0;
+          const count = sales[item.id] || 0;
           totalCount += count;
           totalAmount += count * item.price;
         });
@@ -970,7 +979,12 @@
       reader.onload = function(e) {
         try {
           recordState();
-          appData = JSON.parse(e.target.result);
+          const imported = JSON.parse(e.target.result);
+          [1, 2, 3].forEach(d => {
+            if (imported[d]) {
+              appData[d] = { ...createDayData(), ...imported[d] };
+            }
+          });
           renderAll(false);
           alert('バックアップから復元しました！');
         } catch (err) {
